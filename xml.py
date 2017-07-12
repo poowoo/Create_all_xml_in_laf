@@ -1,5 +1,6 @@
 # -*- coding: utf8 -*-
 import os
+import pdb
 
 def write_header(fn):
 
@@ -9,8 +10,8 @@ def write_header(fn):
 
 def write_ann_text_french(corpus_fn,out_fn):
     
-    f = open(corpus_fn, "r",encoding="utf-8")                       
-    w = open(out_fn + '.txt','w',encoding='utf-8')
+    f = open(corpus_fn, mode =  "r", encoding = "utf-8")                       
+    w = open(out_fn + '.txt', mode = 'w', encoding = 'utf-8')
 
     for line in f.readlines():
         line = line.strip()
@@ -18,34 +19,29 @@ def write_ann_text_french(corpus_fn,out_fn):
             continue
         line = line.split(' ')
         for tok in line:
-            w.write(tok.split('|')[0])
+            word = tok.split('|')[0]
+            #dddd
+            #word = word.replace("\"","&quot;")
+            w.write(word)
             if tok is not line[-1]:
-            	w.write(" ")
+                w.write(" ")
         w.write('\n')
-
     f.close()
     w.close()
-
-def write_ann_sentence(text_fn,ann):
-
-    f = open(text_fn + ".txt",'r',encoding = 'utf-8')
-    out_fn = 
 
 def write_xml_anntations(corpus_fn,out_fn,ann_types):
     
     # change by the corpust data
     write_ann_text_french(corpus_fn,out_fn)
-
-	ann_types = ["s,sentence"]
+    
     for ann in ann_types:
         # change the code by different data
         if ann.split(',')[0] == "s":
             write_ann_sentence(out_fn,ann.split(',')[0])
-        if ann.split(',')[0] == 'pos':
-            print('b')
-        if ann.split(',')[0] == "liason":
-            print('c')
-        
+        if ann.split(',')[0] == "pos":
+            write_ann_pos(corpus_fn,out_fn,ann.split(',')[0])
+        if ann.split(',')[0] == "liaison":
+            write_ann_liason(corpus_fn,out_fn,ann.split(',')[0])        
 
 def write_xml_header(fn):
         
@@ -112,9 +108,7 @@ def write_xml_header(fn):
     out.write("        </textClass>\n")
     out.write("        <!-- MEDIUM DEFINED IN MAIN HEADER -->\n")
     out.write("        <primaryData loc=\"" + fn + ".txt\" medium=\"text\"/>\n")
-    out.write("        <annotations>\n")    
-    #out.write("             <annotation ann.loc=\"" + fn + "-s.xml\" type=\"s\">Sentence boundaries</annotation>\n")
-    #out.write("             <annotation ann.loc=\"" + fn + "-pos.xml\" type=\"pos\">POS tags</annotation>\n")
+    out.write("        <annotations>\n")            
     for ann in ann_types:
     	out.write("            <annotation ann.loc=\"" + fn + "-" + ann.split(',')[0] + ".xml\" type=\"" + ann.split(',')[0] + "\">" + ann.split(',')[1] + "</annotation>\n")
     out.write("             <annotation ann.loc=\"" + fn + ".txt\" type=\"content\">Document content</annotation>\n")
@@ -123,3 +117,169 @@ def write_xml_header(fn):
     out.write("</cesHeader>\n")
     out.close()
     return ann_types
+
+def corpus_fn_get_liason(corpus_fn):
+
+    f = open(corpus_fn, mode = "r", encoding = 'utf-8')
+    liason = list()    
+    for line in f.readlines():
+            line = line.strip()
+            if not len(line) or line.startswith('#'):
+                continue
+            line = line.split(' ')
+            for tok in line:
+                liason.append(tok.split('|')[2])
+    f.close()
+    return liason
+
+def write_ann_liason(corpus_fn,text_fn,ann):
+
+    liason = corpus_fn_get_liason(corpus_fn)
+
+    id_index = 0
+    out_fn = open(text_fn + "-" + ann + ".xml", mode = "w", encoding = 'utf-8')
+    out_fn.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
+    out_fn.write("<graph>\n")
+    out_fn.write("    <header>\n")
+    out_fn.write("        <tagsDecl>\n")
+    out_fn.write("            <tagUsage gi=\"" + ann + "\" occurs=\"" + str(int(len(liason))) + "\"/>\n")
+    out_fn.write("        </tagsDecl>\n")
+    out_fn.write("        <annotationSets>\n")
+    out_fn.write("            <annotationSet name=\"xces\" type=\"http://www.xces.org/schema/2003\"/>\n")
+    out_fn.write("        </annotationSets>\n")
+    out_fn.write("    </header>\n")
+    while(1):        
+        out_fn.write("    <node xml:id=\"" + ann + "-n" + str(id_index) +"\"/>\n")        
+        out_fn.write("    <a label=\"" + ann + "\" ref=\"" + ann + "-n" + str(id_index) + "\" as=\"xces\">\n")
+        out_fn.write("        <fs>\n")        
+        out_fn.write("            <f name=\"msd\" value=\"" + liason[id_index] + "\"/>\n")
+        out_fn.write("        </fs>\n")
+        out_fn.write("    </a>\n")
+        id_index += 1
+        if id_index == len(liason):
+            break;
+    id_index = 0
+    while(1):        
+        out_fn.write("    <edge xml:id=\"lnk" + str(id_index) + "\" from=\"" + ann + "-n" + str(id_index) + "\" to=\"penn-n" + str(id_index) + "\"/>\n")
+        id_index += 1
+        if id_index == len(liason):
+            break;
+    out_fn.write("</graph>\n")    
+    out_fn.close()
+
+def text_get_pos_region(text_fn,ann):
+
+    f = open(text_fn + ".txt", mode = "r", encoding = 'utf-8')
+    region = list()
+    pre_pos_index = 0
+    
+    for line in f.readlines():
+        line = line.strip()
+        if not len(line) or line.startswith('#'):
+            continue
+        line = line.split(' ')
+        for tok in line:
+            region.append(pre_pos_index)
+            region.append(pre_pos_index + len(tok))
+            pre_pos_index += len(tok) + 1
+        pre_pos_index += 1 #window format
+    f.close()
+    return region
+
+def corpus_get_pos_word(corpus_fn):
+
+    f = open(corpus_fn, mode = "r", encoding = 'utf-8')
+    pos = list()
+    word = list()    
+    for line in f.readlines():
+            line = line.strip()
+            if not len(line) or line.startswith('#'):
+                continue
+            line = line.split(' ')
+            for tok in line:
+            	#dddd                
+                word.append(tok.split('|')[0].replace("\"","&quot;"))
+                pos.append(tok.split('|')[1].replace("\"","&quot;"))                
+    f.close()
+    return pos,word
+
+def write_ann_pos(corpus_fn,text_fn,ann):
+
+    # change in another data format
+    pos_region = text_get_pos_region(text_fn,ann)
+    pos,word = corpus_get_pos_word(corpus_fn)
+    
+    id_index = 0
+    out_fn = open(text_fn + "-" + ann + ".xml", mode = "w", encoding = 'utf-8')
+    out_fn.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
+    out_fn.write("<graph>\n")
+    out_fn.write("    <header>\n")
+    out_fn.write("        <tagsDecl>\n")
+    out_fn.write("            <tagUsage gi=\"" + ann + "\" occurs=\"" + str(int(len(pos))) + "\"/>\n")
+    out_fn.write("        </tagsDecl>\n")
+    out_fn.write("        <annotationSets>\n")
+    out_fn.write("            <annotationSet name=\"xces\" type=\"http://www.xces.org/schema/2003\"/>\n")
+    out_fn.write("        </annotationSets>\n")
+    out_fn.write("    </header>\n")
+    while(1):
+        out_fn.write("    <region xml:id=\"penn-r" + str(id_index) + "\" anchors=\"" + str(pos_region[id_index * 2]) +" "+ str(pos_region[id_index * 2 + 1]) + "\"/>\n")
+        out_fn.write("    <node xml:id=\"penn-n" + str(id_index) +"\">\n")
+        out_fn.write("        <link targets=\"penn-r" + str(id_index) + "\"/>\n")
+        out_fn.write("    </node>\n")
+        out_fn.write("    <a label=\"" + ann + "\" ref=\"penn-n" + str(id_index) +"\" as=\"xces\">\n")
+        out_fn.write("        <fs>\n")
+        out_fn.write("            <f name=\"base\" value=\"" + word[id_index] + "\"/>\n")
+        out_fn.write("            <f name=\"msd\" value=\"" + pos[id_index] + "\"/>\n")
+        out_fn.write("        </fs>\n")
+        out_fn.write("    </a>\n")
+        id_index += 1
+        if id_index == len(pos):
+            break;
+    out_fn.write("</graph>\n")    
+    out_fn.close()
+
+def text_get_sen_region(text_fn,ann):
+
+    f = open(text_fn + ".txt", mode = "r", encoding = 'utf-8')    
+    region = list()
+    pre_line_index = 0
+    for line in f.readlines():
+        line = line.strip()
+        if not len(line) or line.startswith('#'):
+            continue
+        region.append(pre_line_index)
+        region.append(pre_line_index + len(line))
+        pre_line_index += len(line) + 2 #\r\n(2 charctures)
+    f.close()
+    return region
+
+def write_ann_sentence(text_fn,ann):
+    
+    sen_region = text_get_sen_region(text_fn,ann)
+    
+    id_index = 0
+    out_fn = open(text_fn + "-" + ann + ".xml", mode = "w", encoding = 'utf-8')
+    out_fn.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
+    out_fn.write("<graph>\n")
+    out_fn.write("    <header>\n")
+    out_fn.write("        <tagsDecl>\n")
+    out_fn.write("            <tagUsage gi=\"" + ann + "\" occurs=\"" + str(int(len(sen_region)/2)) + "\"/>\n")
+    out_fn.write("        </tagsDecl>\n")
+    out_fn.write("        <annotationSets>\n")
+    out_fn.write("            <annotationSet name=\"xces\" type=\"http://www.xces.org/schema/2003\"/>\n")
+    out_fn.write("        </annotationSets>\n")
+    out_fn.write("    </header>\n")
+    while(1):
+        out_fn.write("    <region xml:id=\"s-r" + str(id_index) + "\" anchors=\"" + str(sen_region[id_index * 2]) +" "+ str(sen_region[id_index * 2 + 1]) + "\"/>\n")
+        out_fn.write("    <node xml:id=\"s-n" + str(id_index) +"\">\n")
+        out_fn.write("        <link targets=\"s-r" + str(id_index) + "\"/>\n")
+        out_fn.write("    </node>\n")
+        out_fn.write("    <a label=\"" + ann + "\" ref=\"s-n" + str(id_index) +"\" as=\"xces\"/>\n")
+        id_index += 1
+        if id_index == len(sen_region)/2:
+        	break;
+    out_fn.write("</graph>\n")   
+    out_fn.close()
+
+
+	
