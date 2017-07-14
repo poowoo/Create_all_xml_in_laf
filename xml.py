@@ -43,39 +43,55 @@ def write_xml_anntations(corpus_fn,out_fn,ann_types):
         if ann.split(',')[0] == "liaison":
             write_ann_liason(corpus_fn,out_fn,ann.split(',')[0])        
 
-def write_xml_header(fn):
+def write_xml_header(fn,corpus_info,lan_info):
         
-    title = input('set title: ')
-    wordCount = input("set word count: ")
-    source_title = input("set file description title: ")
-    publisher = input("set file description publisher: ")
-    pubAddress = input("set file description pubAddress: ")
-    email = input("set file description email: ")
-    url = input("set file description url: ")
-    pubDate = input("set file description pubDate: ")
+    #title = input('set title: ')
+    #wordCount = input("set word count: ")
+    #source_title = input("set file description title: ")
+    #publisher = input("set file description publisher: ")
+    #pubAddress = input("set file description pubAddress: ")
+    #email = input("set file description email: ")
+    #url = input("set file description url: ")
+    #pubDate = input("set file description pubDate: ")
 
-    iso639 = input("set language in iso639(shorthand): ")
-    language = input("set language: ")
+    #iso639 = input("set language in iso639(shorthand): ")
+    #language = input("set language: ")
 
-    domain = input("set textClass domain: ")
-    factuality = input("set textClass factuality: ")
-    preparedness = input("set textClass preparedness: ")
-    purpose = input("set textClass purpose: ")
+    #domain = input("set textClass domain: ")
+    #factuality = input("set textClass factuality: ")
+    #preparedness = input("set textClass preparedness: ")
+    #purpose = input("set textClass purpose: ")
 
-    ann_types = ["s,Sentence boundaries","pos,POS tags"]
+    title = corpus_info.split(',')[0]
+    wordCount = corpus_info.split(',')[1]
+    source_title = corpus_info.split(',')[2]
+    publisher = corpus_info.split(',')[3]
+    pubAddress = corpus_info.split(',')[4]
+    email = corpus_info.split(',')[5]
+    url = corpus_info.split(',')[6]
+    pubDate = corpus_info.split(',')[7]
+
+    iso639 = lan_info.split(',')[0]
+    language = lan_info.split(',')[1]
+
+    domain = file_info.split(',')[0]
+    factuality = "Change by the user"
+    preparedness = "Change by the user"
+    purpose = "Change by the user"
+
+    ann_types = ["s,Sentence boundaries","pos,POS tags","liaison,Liaison"]
 
     write_header(fn + ".xml")
 
-    while(1):
+    #while(1):
 
-    	ann_type = input("set annotation type,type -1 to leave\n")    	
-    	
-    	if ann_type == '-1':
-    		break
-    	else:
-    		ann_types.append(ann_type)    	
+    	#ann_type = input("set annotation type,type -1 to leave\n")    	
+    	#
+    	#if ann_type == '-1':
+    	#	break
+    	#else:
+    	#	ann_types.append(ann_type)    	
     
-
     out = open(fn + ".xml", mode='a', encoding='UTF-8')
     out.write("<cesHeader>\n")
     out.write("    <fileDesc>\n")
@@ -110,7 +126,7 @@ def write_xml_header(fn):
     out.write("        <primaryData loc=\"" + fn + ".txt\" medium=\"text\"/>\n")
     out.write("        <annotations>\n")            
     for ann in ann_types:
-    	out.write("            <annotation ann.loc=\"" + fn + "-" + ann.split(',')[0] + ".xml\" type=\"" + ann.split(',')[0] + "\">" + ann.split(',')[1] + "</annotation>\n")
+        out.write("            <annotation ann.loc=\"" + fn + "-" + ann.split(',')[0] + ".xml\" type=\"" + ann.split(',')[0] + "\">" + ann.split(',')[1] + "</annotation>\n")
     out.write("             <annotation ann.loc=\"" + fn + ".txt\" type=\"content\">Document content</annotation>\n")
     out.write("          </annotations>\n")
     out.write("    </profileDesc>\n")
@@ -121,20 +137,22 @@ def write_xml_header(fn):
 def corpus_fn_get_liason(corpus_fn):
 
     f = open(corpus_fn, mode = "r", encoding = 'utf-8')
-    liason = list()    
+    liason = list()  
+    word = list()  
     for line in f.readlines():
             line = line.strip()
             if not len(line) or line.startswith('#'):
                 continue
             line = line.split(' ')
             for tok in line:
+                word.append(tok.split('|')[0].replace("\"","&quot;"))
                 liason.append(tok.split('|')[2])
     f.close()
-    return liason
+    return liason,word
 
 def write_ann_liason(corpus_fn,text_fn,ann):
 
-    liason = corpus_fn_get_liason(corpus_fn)
+    liason,word = corpus_fn_get_liason(corpus_fn)
 
     id_index = 0
     out_fn = open(text_fn + "-" + ann + ".xml", mode = "w", encoding = 'utf-8')
@@ -152,6 +170,7 @@ def write_ann_liason(corpus_fn,text_fn,ann):
         out_fn.write("    <node xml:id=\"" + ann + "-n" + str(id_index) +"\"/>\n")        
         out_fn.write("    <a label=\"" + ann + "\" ref=\"" + ann + "-n" + str(id_index) + "\" as=\"xces\">\n")
         out_fn.write("        <fs>\n")        
+        out_fn.write("            <f name=\"base\" value=\"" + word[id_index] + "\"/>\n")
         out_fn.write("            <f name=\"msd\" value=\"" + liason[id_index] + "\"/>\n")
         out_fn.write("        </fs>\n")
         out_fn.write("    </a>\n")
