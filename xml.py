@@ -8,6 +8,20 @@ def write_header(fn):
 	out.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
 	out.close()
 
+def get_word_count(corpus_fn):
+    
+    f = open(corpus_fn, mode =  "r", encoding = "utf-8")                       
+    
+    word_count = 0
+    for line in f.readlines():
+        line = line.strip()
+        if not len(line) or line.startswith('#'):
+            continue
+        line = line.split(' ')
+        word_count += len(line);
+    f.close()
+    return word_count
+
 def write_ann_text_french(corpus_fn,out_fn):
     
     f = open(corpus_fn, mode =  "r", encoding = "utf-8")                       
@@ -43,7 +57,7 @@ def write_xml_anntations(corpus_fn,out_fn,ann_types):
         if ann.split(',')[0] == "liaison":
             write_ann_liason(corpus_fn,out_fn,ann.split(',')[0])        
 
-def write_xml_header(fn,corpus_info,lan_info):
+def write_xml_header(word_count,fn,title_info,corpus_info,lan_info,text_info):
         
     #title = input('set title: ')
     #wordCount = input("set word count: ")
@@ -62,22 +76,22 @@ def write_xml_header(fn,corpus_info,lan_info):
     #preparedness = input("set textClass preparedness: ")
     #purpose = input("set textClass purpose: ")
 
-    title = corpus_info.split(',')[0]
-    wordCount = corpus_info.split(',')[1]
-    source_title = corpus_info.split(',')[2]
-    publisher = corpus_info.split(',')[3]
-    pubAddress = corpus_info.split(',')[4]
-    email = corpus_info.split(',')[5]
-    url = corpus_info.split(',')[6]
-    pubDate = corpus_info.split(',')[7]
+    title = title_info
+    wordCount = str(word_count)    
+    source_title = corpus_info.split('-')[0]
+    publisher = corpus_info.split('-')[1]
+    pubAddress = corpus_info.split('-')[2]
+    email = corpus_info.split('-')[3]
+    url = corpus_info.split('-')[4]
+    pubDate = corpus_info.split('-')[5]
 
-    iso639 = lan_info.split(',')[0]
-    language = lan_info.split(',')[1]
+    iso639 = lan_info.split('-')[0]
+    language = lan_info.split('-')[1]
 
-    domain = file_info.split(',')[0]
-    factuality = "Change by the user"
-    preparedness = "Change by the user"
-    purpose = "Change by the user"
+    domain = text_info.split('-')[0]
+    factuality = text_info.split('-')[1]
+    preparedness = text_info.split('-')[2]
+    purpose = text_info.split('-')[3]
 
     ann_types = ["s,Sentence boundaries","pos,POS tags","liaison,Liaison"]
 
