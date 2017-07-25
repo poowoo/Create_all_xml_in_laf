@@ -177,7 +177,7 @@ def write_ann_liason(corpus_fn,text_fn,ann):
     out_fn.write("            <tagUsage gi=\"" + ann + "\" occurs=\"" + str(int(len(liason))) + "\"/>\n")
     out_fn.write("        </tagsDecl>\n")
     out_fn.write("        <dependencies>\n")
-    out_fn.write("            <dependsOn type=\"" + "pos" + "/>\n")
+    out_fn.write("            <dependsOn type=\"" + "pos" + "\"/>\n")
     out_fn.write("        </dependencies>\n")
     out_fn.write("        <annotationSets>\n")
     out_fn.write("            <annotationSet name=\"xces\" type=\"http://www.xces.org/schema/2003\"/>\n")
