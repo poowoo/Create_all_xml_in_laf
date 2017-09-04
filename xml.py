@@ -22,7 +22,27 @@ def get_word_count(corpus_fn):
     f.close()
     return word_count
 
-def write_ann_text_french(corpus_fn,out_fn):
+#def write_ann_text_french(corpus_fn,out_fn):
+#    
+#    f = open(corpus_fn, mode =  "r", encoding = "utf-8")                       
+#    w = open(out_fn + '.txt', mode = 'w', encoding = 'utf-8')
+#
+#    for line in f.readlines():
+#        line = line.strip()
+#        if not len(line) or line.startswith('#'):
+#            continue
+#        line = line.split(' ')
+#        for tok in line:
+#            word = tok.split('|')[0]            
+#            #word = word.replace("\"","&quot;")# \" need to change to &quot;
+#            w.write(word)
+#            if tok is not line[-1]:
+#                w.write(" ")
+#        w.write('\n')
+#    f.close()
+#    w.close()
+
+def write_ann_text(corpus_fn,out_fn):
     
     f = open(corpus_fn, mode =  "r", encoding = "utf-8")                       
     w = open(out_fn + '.txt', mode = 'w', encoding = 'utf-8')
@@ -33,31 +53,33 @@ def write_ann_text_french(corpus_fn,out_fn):
             continue
         line = line.split(' ')
         for tok in line:
-            word = tok.split('|')[0]
-            #dddd
-            #word = word.replace("\"","&quot;")
-            w.write(word)
+            w.write(tok)
             if tok is not line[-1]:
                 w.write(" ")
         w.write('\n')
     f.close()
     w.close()
 
-def write_xml_anntations(corpus_fn,out_fn,ann_types):
+def write_xml_anntations(corpus_fn,out_fn,ann_types,lexicon_dict):
     
     # change by the corpust data
-    write_ann_text_french(corpus_fn,out_fn)
+    # write_ann_text_french(corpus_fn,out_fn)
+    write_ann_text(corpus_fn,out_fn)
     
     for ann in ann_types:
         # change the code by different data
         if ann.split(',')[0] == "s":
             write_ann_sentence(out_fn,ann.split(',')[0])
+        if ann.split(',')[0] == "phone":
+            write_ann_phone(corpus_fn,out_fn,ann.split(',')[0],lexicon_dict)
+        if ann.split(',')[0] == "tok":
+            write_ann_pos(corpus_fn,out_fn,ann.split(',')[0])
         if ann.split(',')[0] == "pos":
             write_ann_pos(corpus_fn,out_fn,ann.split(',')[0])
         if ann.split(',')[0] == "liaison":
             write_ann_liason(corpus_fn,out_fn,ann.split(',')[0])        
 
-def write_xml_header(word_count,fn,title_info,corpus_info,lan_info,text_info):
+def write_xml_header(word_count,fn,title_info,corpus_info,lan_info,text_info,ann_types):
         
     #title = input('set title: ')
     #wordCount = input("set word count: ")
@@ -93,7 +115,8 @@ def write_xml_header(word_count,fn,title_info,corpus_info,lan_info,text_info):
     preparedness = text_info.split('-')[2]
     purpose = text_info.split('-')[3]
 
-    ann_types = ["s,Sentence boundaries","pos,POS tags","liaison,Liaison"]
+    #ann_types = ["s,Sentence boundaries","pos,POS tags","liaison,Liaison"]
+    #ann_types = ["s,Sentence boundaries","phone,Phones tags"]
 
     write_header(fn + ".xml")
 
@@ -185,10 +208,12 @@ def write_ann_liason(corpus_fn,text_fn,ann):
     out_fn.write("    </header>\n")
     while(1):        
         out_fn.write("    <node xml:id=\"" + ann + "-n" + str(id_index) +"\"/>\n")        
-        out_fn.write("    <a label=\"" + ann + "\" ref=\"" + ann + "-n" + str(id_index) + "\" as=\"xces\">\n")
+        out_fn.write("    <a label=\"" + ann + "\" ref=\"" + ann + "-n" + str(id_index) + "\" to=\"penn-n" + str(id_index) + "\" as=\"xces\">\n")
         out_fn.write("        <fs>\n")        
-        out_fn.write("            <f name=\"base\" value=\"" + word[id_index] + "\"/>\n")
-        out_fn.write("            <f name=\"msd\" value=\"" + liason[id_index] + "\"/>\n")
+        #out_fn.write("            <f name=\"base\" value=\"" + word[id_index] + "\"/>\n")
+        out_fn.write("            <f name=\"lia\" value=\"" + liason[id_index] + "\"/>\n")
+        #out_fn.write("            <f name=\"lt\" value=\"" + liason[id_index] + "\"/>\n")
+        #out_fn.write("            <f name=\"rt\" value=\"" + liason[id_index] + "\"/>\n")
         out_fn.write("        </fs>\n")
         out_fn.write("    </a>\n")
         id_index += 1
@@ -203,11 +228,79 @@ def write_ann_liason(corpus_fn,text_fn,ann):
     out_fn.write("</graph>\n")    
     out_fn.close()
 
-def text_get_pos_region(text_fn,ann):
+def corpus_get_word_phone(text_fn,lexicon_dict):
+
+    lexicon = dict()    
+    phone = list()
+    word = list()
+    l = open(lexicon_dict, mode = "r", encoding = 'utf-8')
+    #for line in l.readlines():    
+    for line in open(lexicon_dict, encoding = 'utf-8'):
+        line = l.readline()
+        line = line.strip()
+        if not len(line) or line.startswith('#'):
+            continue
+        line = line.split('\t')        
+        lexicon[line[0]] = line[1]
+    l.close()
+
+    f = open(text_fn + ".txt", mode = "r", encoding = 'utf-8')
+    for line in f.readlines():
+            line = line.strip()
+            if not len(line) or line.startswith('#'):
+                continue
+            line = line.split(' ')
+            for tok in line:
+                word.append(tok.replace("\"","&quot;"))
+                tok = "".join(c for c in tok if c not in ('!',',','.',':')) 
+                if(tok.lower() in lexicon):
+                    phone.append(lexicon[tok.lower()])
+                else:
+                    phone.append("None")
+
+    f.close()
+    return phone,word
+
+def write_ann_phone(corpus_fn,text_fn,ann,liexcon_dict):
+    
+    token_region = text_get_token_region(text_fn)
+    phone,word = corpus_get_word_phone(text_fn,liexcon_dict)
+
+    id_index = 0
+    id_index = 0
+    out_fn = open(text_fn + "-" + ann + ".xml", mode = "w", encoding = 'utf-8')
+    out_fn.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
+    out_fn.write("<graph>\n")
+    out_fn.write("    <header>\n")
+    out_fn.write("        <tagsDecl>\n")
+    out_fn.write("            <tagUsage gi=\"" + ann + "\" occurs=\"" + str(int(len(phone))) + "\"/>\n")
+    out_fn.write("        </tagsDecl>\n")
+    out_fn.write("        <annotationSets>\n")
+    out_fn.write("            <annotationSet name=\"xces\" type=\"http://www.xces.org/schema/2003\"/>\n")
+    out_fn.write("        </annotationSets>\n")
+    out_fn.write("    </header>\n")
+    while(1):
+        out_fn.write("    <region xml:id=\"penn-r" + str(id_index) + "\" anchors=\"" + str(token_region[id_index * 2]) +" "+ str(token_region[id_index * 2 + 1]) + "\"/>\n")
+        out_fn.write("    <node xml:id=\"penn-n" + str(id_index) +"\">\n")
+        out_fn.write("        <link targets=\"penn-r" + str(id_index) + "\"/>\n")
+        out_fn.write("    </node>\n")
+        out_fn.write("    <a label=\"" + ann + "\" ref=\"penn-n" + str(id_index) +"\" as=\"xces\">\n")
+        out_fn.write("        <fs>\n")
+        out_fn.write("            <f name=\"base\" value=\"" + word[id_index] + "\"/>\n")
+        out_fn.write("            <f name=\"" + ann + "\" value=\"" + phone[id_index] + "\"/>\n")
+        out_fn.write("        </fs>\n")
+        out_fn.write("    </a>\n")
+        id_index += 1
+        if id_index == len(phone):
+            break;
+    out_fn.write("</graph>\n")    
+    out_fn.close()
+
+def text_get_token_region(text_fn):
 
     f = open(text_fn + ".txt", mode = "r", encoding = 'utf-8')
     region = list()
-    pre_pos_index = 0
+    pre_token_index = 0
     
     for line in f.readlines():
         line = line.strip()
@@ -215,10 +308,10 @@ def text_get_pos_region(text_fn,ann):
             continue
         line = line.split(' ')
         for tok in line:
-            region.append(pre_pos_index)
-            region.append(pre_pos_index + len(tok))
-            pre_pos_index += len(tok) + 1
-        pre_pos_index += 1 #window format
+            region.append(pre_token_index)
+            region.append(pre_token_index + len(tok))
+            pre_token_index += len(tok) + 1
+        pre_token_index += 1 #window format
     f.close()
     return region
 
@@ -242,7 +335,7 @@ def corpus_get_pos_word(corpus_fn):
 def write_ann_pos(corpus_fn,text_fn,ann):
 
     # change in another data format
-    pos_region = text_get_pos_region(text_fn,ann)
+    pos_region = text_get_token_region(text_fn)
     pos,word = corpus_get_pos_word(corpus_fn)
     
     id_index = 0
