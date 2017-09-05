@@ -1,6 +1,7 @@
 # -*- coding: utf8 -*-
 import os
 import pdb
+import language_dictonary
 
 def write_header(fn):
 
@@ -65,15 +66,18 @@ def write_xml_anntations(corpus_fn,out_fn,ann_types,lexicon_dict):
     # change by the corpust data
     # write_ann_text_french(corpus_fn,out_fn)
     write_ann_text(corpus_fn,out_fn)
-    
+
+    if(len(lexicon_dict) > 0):
+        language_dict = language_dictonary.initial_ld(lexicon_dict)
+
     for ann in ann_types:
         # change the code by different data
         if ann.split(',')[0] == "s":
             write_ann_sentence(out_fn,ann.split(',')[0])
-        if ann.split(',')[0] == "phone":
-            write_ann_phone(corpus_fn,out_fn,ann.split(',')[0],lexicon_dict)
+        if ann.split(',')[0] == "phone":            
+            write_ann_phone(corpus_fn,out_fn,ann.split(',')[0],language_dict)
         if ann.split(',')[0] == "tok":
-            write_ann_pos(corpus_fn,out_fn,ann.split(',')[0])
+            write_ann_tok(corpus_fn,out_fn,ann.split(',')[0])
         if ann.split(',')[0] == "pos":
             write_ann_pos(corpus_fn,out_fn,ann.split(',')[0])
         if ann.split(',')[0] == "liaison":
@@ -228,21 +232,11 @@ def write_ann_liason(corpus_fn,text_fn,ann):
     out_fn.write("</graph>\n")    
     out_fn.close()
 
-def corpus_get_word_phone(text_fn,lexicon_dict):
+def corpus_get_word_phone(text_fn,language_dict):
 
-    lexicon = dict()    
+        
     phone = list()
-    word = list()
-    l = open(lexicon_dict, mode = "r", encoding = 'utf-8')
-    #for line in l.readlines():    
-    for line in open(lexicon_dict, encoding = 'utf-8'):
-        line = l.readline()
-        line = line.strip()
-        if not len(line) or line.startswith('#'):
-            continue
-        line = line.split('\t')        
-        lexicon[line[0]] = line[1]
-    l.close()
+    word = list()    
 
     f = open(text_fn + ".txt", mode = "r", encoding = 'utf-8')
     for line in f.readlines():
@@ -252,9 +246,9 @@ def corpus_get_word_phone(text_fn,lexicon_dict):
             line = line.split(' ')
             for tok in line:
                 word.append(tok.replace("\"","&quot;"))
-                tok = "".join(c for c in tok if c not in ('!',',','.',':')) 
-                if(tok.lower() in lexicon):
-                    phone.append(lexicon[tok.lower()])
+                tok = "".join(c for c in tok if c not in ('!',',','.',':','\"')) 
+                if(tok.lower() in language_dict):
+                    phone.append(language_dict[tok.lower()][1])
                 else:
                     phone.append("None")
 
@@ -287,7 +281,8 @@ def write_ann_phone(corpus_fn,text_fn,ann,liexcon_dict):
         out_fn.write("    <a label=\"" + ann + "\" ref=\"penn-n" + str(id_index) +"\" as=\"xces\">\n")
         out_fn.write("        <fs>\n")
         out_fn.write("            <f name=\"base\" value=\"" + word[id_index] + "\"/>\n")
-        out_fn.write("            <f name=\"" + ann + "\" value=\"" + phone[id_index] + "\"/>\n")
+        out_fn.write("            <f name=\"" + ann + "\" value=\"" + phone[id_index].split('|')[0] + "\"/>\n")
+        out_fn.write("            <f name=\"" + ann + "s\" value=\"" + phone[id_index] + "\"/>\n")
         out_fn.write("        </fs>\n")
         out_fn.write("    </a>\n")
         id_index += 1
@@ -363,6 +358,55 @@ def write_ann_pos(corpus_fn,text_fn,ann):
         out_fn.write("    </a>\n")
         id_index += 1
         if id_index == len(pos):
+            break;
+    out_fn.write("</graph>\n")    
+    out_fn.close()
+
+def corpus_get_word(corpus_fn):
+    
+    word = list()    
+
+    f = open(corpus_fn, mode = "r", encoding = 'utf-8')
+    for line in f.readlines():
+            line = line.strip()
+            if not len(line) or line.startswith('#'):
+                continue
+            line = line.split(' ')
+            for tok in line:
+                word.append(tok.replace("\"","&quot;"))                
+    f.close()
+    return word
+
+def write_ann_tok(corpus_fn,text_fn,ann):
+
+    # change in another data format
+    tok_region = text_get_token_region(text_fn)
+    tok = corpus_get_word(corpus_fn)
+    
+    id_index = 0
+    out_fn = open(text_fn + "-" + ann + ".xml", mode = "w", encoding = 'utf-8')
+    out_fn.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
+    out_fn.write("<graph>\n")
+    out_fn.write("    <header>\n")
+    out_fn.write("        <tagsDecl>\n")
+    out_fn.write("            <tagUsage gi=\"" + ann + "\" occurs=\"" + str(int(len(tok))) + "\"/>\n")
+    out_fn.write("        </tagsDecl>\n")
+    out_fn.write("        <annotationSets>\n")
+    out_fn.write("            <annotationSet name=\"xces\" type=\"http://www.xces.org/schema/2003\"/>\n")
+    out_fn.write("        </annotationSets>\n")
+    out_fn.write("    </header>\n")
+    while(1):
+        out_fn.write("    <region xml:id=\"penn-r" + str(id_index) + "\" anchors=\"" + str(tok_region[id_index * 2]) +" "+ str(tok_region[id_index * 2 + 1]) + "\"/>\n")
+        out_fn.write("    <node xml:id=\"penn-n" + str(id_index) +"\">\n")
+        out_fn.write("        <link targets=\"penn-r" + str(id_index) + "\"/>\n")
+        out_fn.write("    </node>\n")
+        out_fn.write("    <a label=\"" + ann + "\" ref=\"penn-n" + str(id_index) +"\" as=\"xces\">\n")
+        out_fn.write("        <fs>\n")
+        out_fn.write("            <f name=\"base\" value=\"" + tok[id_index] + "\"/>\n")        
+        out_fn.write("        </fs>\n")
+        out_fn.write("    </a>\n")
+        id_index += 1
+        if id_index == len(tok):
             break;
     out_fn.write("</graph>\n")    
     out_fn.close()
